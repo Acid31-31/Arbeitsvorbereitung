@@ -1,0 +1,217 @@
+<Window x:Class="GeoArbeitsvorbereitung.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GEO Arbeitsvorbereitung"
+        Width="820" Height="780" MinWidth="640" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBg}"
+        Foreground="{StaticResource TextPrimary}"
+        FontFamily="Segoe UI" FontSize="13">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- title bar -->
+            <RowDefinition Height="*"/>      <!-- content -->
+        </Grid.RowDefinitions>
+
+        <!-- ══ Title bar ════════════════════════════════════════════════════ -->
+        <Border Grid.Row="0" Background="#007ACC" Padding="16,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="⚙" FontSize="18" Foreground="White" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock Text="GEO Arbeitsvorbereitung"
+                           FontSize="16" FontWeight="SemiBold" Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ══ Main content ═════════════════════════════════════════════════ -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="16">
+            <StackPanel>
+
+                <!-- ── Section 1: Einstellungen ───────────────────────────── -->
+                <Border Background="{StaticResource SectionBg}" CornerRadius="4"
+                        Margin="0,0,0,12" Padding="16">
+                    <StackPanel>
+                        <!-- Section header / toggle -->
+                        <Button Command="{Binding ToggleSettingsCommand}"
+                                Style="{StaticResource SectionToggleButton}"
+                                Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding SettingsToggleArrow}"
+                                           FontSize="11" Foreground="#9E9E9E"
+                                           Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="🔧 Einstellungen" FontSize="14" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <StackPanel Visibility="{Binding SettingsExpanded, Converter={StaticResource BoolToVis}}">
+                            <!-- Search root -->
+                            <Label Content="Suchordner (GEO-Dateien)"/>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding SearchRoot, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Durchsuchen…"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding BrowseSearchRootCommand}"/>
+                            </Grid>
+
+                            <!-- Output root -->
+                            <Label Content="Speicherordner (Ausgabe)"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding OutputRoot, UpdateSourceTrigger=PropertyChanged}"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Durchsuchen…"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Command="{Binding BrowseOutputRootCommand}"/>
+                            </Grid>
+
+                            <Button Content="Einstellungen speichern"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Command="{Binding SaveSettingsCommand}"
+                                    HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Section 2: Suche ───────────────────────────────────── -->
+                <Border Background="{StaticResource SectionBg}" CornerRadius="4"
+                        Margin="0,0,0,12" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="🔍 Suche nach GEO-Datei"
+                                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                        <Label Content="Zeichnungsnummer"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding DrawingNumber, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,8,0">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Return" Command="{Binding SearchCommand}"/>
+                                </TextBox.InputBindings>
+                            </TextBox>
+                            <Button Grid.Column="1" Content="Suchen"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding SearchCommand}"/>
+                        </Grid>
+
+                        <!-- Result card -->
+                        <Border Visibility="{Binding HasFoundFile, Converter={StaticResource BoolToVis}}"
+                                Background="#1A3A1A" BorderBrush="#2D6B2D" BorderThickness="1"
+                                CornerRadius="3" Padding="12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Icon -->
+                                <TextBlock Grid.Column="0" Grid.RowSpan="4"
+                                           Text="✅" FontSize="20"
+                                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                <!-- Filename -->
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding FoundFile.FileName}"
+                                           FontWeight="SemiBold" Foreground="{StaticResource TextSuccess}"
+                                           TextWrapping="Wrap"/>
+
+                                <!-- Full path -->
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding FoundFile.FullPath}"
+                                           Foreground="#9E9E9E" FontSize="11"
+                                           TextWrapping="Wrap" Margin="0,2,0,4"/>
+
+                                <!-- Dates -->
+                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                                    <TextBlock Text="Geändert: " Foreground="#9E9E9E" FontSize="11"/>
+                                    <TextBlock Text="{Binding FoundFile.LastWriteTime, StringFormat='dd.MM.yyyy HH:mm:ss'}"
+                                               Foreground="#9E9E9E" FontSize="11"/>
+                                </StackPanel>
+
+                                <!-- Material -->
+                                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="Material-Ordner: " Foreground="#9E9E9E" FontSize="11"/>
+                                    <TextBlock Text="{Binding FoundFile.Material}"
+                                               Foreground="#4EC94E" FontSize="11" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Section 3: Stückzahl &amp; Ablegen ─────────────────── -->
+                <Border Background="{StaticResource SectionBg}" CornerRadius="4"
+                        Margin="0,0,0,12" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="📋 Stückzahl ändern &amp; ablegen"
+                                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                        <Label Content="Neue Stückzahl"/>
+                        <Grid Margin="0,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding NewQuantity, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,8,0"/>
+                            <Button Grid.Column="1"
+                                    Content="Kopie erstellen &amp; ablegen"
+                                    Style="{StaticResource PrimaryButton}"
+                                    Command="{Binding CreateCopyCommand}"
+                                    HorizontalAlignment="Left"/>
+                        </Grid>
+
+                        <TextBlock Text="Die Stückzahl im Dateinamen wird ersetzt (z. B. 3x → 10x)."
+                                   FontSize="11" Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,8,0,0"/>
+                        <TextBlock Text="Das Original wird niemals verändert oder überschrieben."
+                                   FontSize="11" Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Section 4: Status / Log ──────────────────────────── -->
+                <Border Background="{StaticResource SectionBg}" CornerRadius="4" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="📝 Protokoll"
+                                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <Border Background="#1A1A1A" BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="3" Padding="10" Height="160">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <TextBox Text="{Binding StatusLog, Mode=OneWay}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         FontFamily="Consolas"
+                                         FontSize="12"
+                                         Foreground="{StaticResource TextSecondary}"
+                                         Padding="0"/>
+                            </ScrollViewer>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
