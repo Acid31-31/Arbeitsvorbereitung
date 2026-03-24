@@ -7,17 +7,19 @@ namespace GeoArbeitsvorbereitung.Services;
 public class GeoFileService : IGeoFileService
 {
     private static readonly Regex QuantityPattern = new(@"^(\d+)x$", RegexOptions.IgnoreCase);
+    private static readonly Regex MaterialPattern = new(@"^(V2a|ST)-\d+(?:[\.,]\d+)?mm$", RegexOptions.IgnoreCase);
 
-    public GeoFileInfo? FindNewest(string searchRoot, string drawingNumber)
+    public IReadOnlyList<GeoFileInfo> FindAll(string searchRoot, string searchTerm)
     {
         if (!Directory.Exists(searchRoot))
             throw new DirectoryNotFoundException($"Suchordner nicht gefunden: {searchRoot}");
 
-        GeoFileInfo? best = null;
+        var term = searchTerm.Trim();
+        var results = new List<GeoFileInfo>();
 
         foreach (var filePath in Directory.EnumerateFiles(searchRoot, "*.geo", SearchOption.AllDirectories))
         {
-            GeoFileInfo? info;
+            GeoFileInfo info;
             try
             {
                 info = ParseFile(filePath);
@@ -25,14 +27,21 @@ public class GeoFileService : IGeoFileService
             catch (UnauthorizedAccessException) { continue; }
             catch (IOException) { continue; }
 
-            if (info == null) continue;
-            if (!string.Equals(info.DrawingNumber, drawingNumber, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!MatchesSearchTerm(info, term))
+                continue;
 
-            if (best == null || info.LastWriteTime > best.LastWriteTime)
-                best = info;
+            results.Add(info);
         }
 
-        return best;
+        return results
+            .OrderByDescending(f => f.LastWriteTime)
+            .ThenBy(f => f.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public GeoFileInfo? FindNewest(string searchRoot, string searchTerm)
+    {
+        return FindAll(searchRoot, searchTerm).FirstOrDefault();
     }
 
     public string BuildNewFileName(GeoFileInfo source, int newQuantity)
@@ -55,26 +64,68 @@ public class GeoFileService : IGeoFileService
 
     public string BuildTargetPath(string outputRoot, GeoFileInfo source, string newFileName)
     {
-        var material = string.IsNullOrWhiteSpace(source.Material) ? "_Sonstige" : source.Material;
-        return Path.Combine(outputRoot, material, newFileName);
+        if (!Directory.Exists(outputRoot))
+            throw new DirectoryNotFoundException($"Speicherordner nicht gefunden: {outputRoot}");
+
+        var material = source.Material?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(material) || !MaterialPattern.IsMatch(material))
+            throw new InvalidOperationException(
+                "Ungültiges oder fehlendes Material im Dateinamen. Erwartet z. B. 'V2a-1,5mm' oder 'ST-5,0mm'.");
+
+        var directMatch = Path.Combine(outputRoot, material);
+        string targetFolder;
+
+        if (Directory.Exists(directMatch))
+        {
+            targetFolder = directMatch;
+        }
+        else
+        {
+            var recursiveMatch = Directory
+                .EnumerateDirectories(outputRoot, "*", SearchOption.AllDirectories)
+                .Where(d => string.Equals(Path.GetFileName(d), material, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(d => d.Length)
+                .ThenBy(d => d, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+
+            if (recursiveMatch == null)
+                throw new DirectoryNotFoundException(
+                    $"Kein vorhandener Material-Ordner \"{material}\" unter \"{outputRoot}\" gefunden.");
+
+            targetFolder = recursiveMatch;
+        }
+
+        return Path.Combine(targetFolder, newFileName);
     }
 
     public void CopyFile(string sourcePath, string targetPath)
     {
         var dir = Path.GetDirectoryName(targetPath)
                   ?? throw new InvalidOperationException($"Ungültiger Zielpfad: {targetPath}");
-        Directory.CreateDirectory(dir);
+
+        if (!Directory.Exists(dir))
+            throw new DirectoryNotFoundException($"Zielordner existiert nicht: {dir}");
+
         File.Copy(sourcePath, targetPath, overwrite: false);
     }
 
-    private static GeoFileInfo? ParseFile(string fullPath)
+    private static bool MatchesSearchTerm(GeoFileInfo info, string term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+            return true;
+
+        if (info.Segments.Any(s => string.Equals(s, term, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return info.FileName.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || info.FullPath.Contains(term, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static GeoFileInfo ParseFile(string fullPath)
     {
         var fileName = Path.GetFileName(fullPath);
         var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
         var segments = nameWithoutExt.Split('_');
-
-        // Need at least segment 1 (customer) and segment 2 (drawing number)
-        if (segments.Length < 2) return null;
 
         var fi = new FileInfo(fullPath);
         return new GeoFileInfo
